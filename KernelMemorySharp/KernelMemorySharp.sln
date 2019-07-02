@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29020.237
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KernelMemorySharp", "KernelMemorySharp.csproj", "{386E5C70-0F53-4078-8353-4A821253BE86}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MemoryDriver", "..\MemoryDriver\MemoryDriver.vcxproj", "{FC23D02D-B070-4434-AC17-0B523A524AAB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverLoaderSharp", "..\DriverLoaderSharp\DriverLoaderSharp\DriverLoaderSharp.csproj", "{85D47D82-CF1D-4E79-B214-E0E05BDD8D8D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoryTester", "..\MemoryTester\MemoryTester.csproj", "{3A865CD9-3872-4BD5-A715-06EF06820559}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{386E5C70-0F53-4078-8353-4A821253BE86}.Debug|x64.ActiveCfg = Debug|x64
+		{386E5C70-0F53-4078-8353-4A821253BE86}.Debug|x64.Build.0 = Debug|x64
+		{386E5C70-0F53-4078-8353-4A821253BE86}.Release|x64.ActiveCfg = Release|x64
+		{386E5C70-0F53-4078-8353-4A821253BE86}.Release|x64.Build.0 = Release|x64
+		{FC23D02D-B070-4434-AC17-0B523A524AAB}.Debug|x64.ActiveCfg = Release|x64
+		{FC23D02D-B070-4434-AC17-0B523A524AAB}.Debug|x64.Build.0 = Release|x64
+		{FC23D02D-B070-4434-AC17-0B523A524AAB}.Release|x64.ActiveCfg = Release|x64
+		{FC23D02D-B070-4434-AC17-0B523A524AAB}.Release|x64.Build.0 = Release|x64
+		{FC23D02D-B070-4434-AC17-0B523A524AAB}.Release|x64.Deploy.0 = Release|x64
+		{85D47D82-CF1D-4E79-B214-E0E05BDD8D8D}.Debug|x64.ActiveCfg = Debug|x64
+		{85D47D82-CF1D-4E79-B214-E0E05BDD8D8D}.Debug|x64.Build.0 = Debug|x64
+		{85D47D82-CF1D-4E79-B214-E0E05BDD8D8D}.Release|x64.ActiveCfg = Release|x64
+		{85D47D82-CF1D-4E79-B214-E0E05BDD8D8D}.Release|x64.Build.0 = Release|x64
+		{3A865CD9-3872-4BD5-A715-06EF06820559}.Debug|x64.ActiveCfg = Debug|x64
+		{3A865CD9-3872-4BD5-A715-06EF06820559}.Debug|x64.Build.0 = Debug|x64
+		{3A865CD9-3872-4BD5-A715-06EF06820559}.Release|x64.ActiveCfg = Release|x64
+		{3A865CD9-3872-4BD5-A715-06EF06820559}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {845AC626-9B52-4164-8B9F-243A645E5DEF}
+	EndGlobalSection
+EndGlobal

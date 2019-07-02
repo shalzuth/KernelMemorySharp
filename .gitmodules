@@ -1,0 +1,3 @@
+[submodule "DriverLoaderSharp"]
+	path = DriverLoaderSharp
+	url = https://github.com/shalzuth/DriverLoaderSharp
