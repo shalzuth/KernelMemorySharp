@@ -10,12 +10,38 @@ namespace KernelMemorySharp
 {
     public unsafe static class MemoryDriver
     {
-        public static Int32 ProcessId = 0;
-        public static UInt64 BaseAddress = 0;
+        public static Int32 _ProcessId = 0;
+        public static Int32 ProcessId
+        {
+            get
+            {
+                if (_ProcessId == 0) _ProcessId = GetProcId();
+                return _ProcessId;
+            }
+        }
+        public static UInt64 _BaseAddress = 0;
+        public static UInt64 BaseAddress
+        {
+            get
+            {
+                if (_BaseAddress == 0) _BaseAddress = GetModuleAddr();
+                return _BaseAddress;
+            }
+        }
+        private static UInt64 _Size = 0;
+        public static UInt64 Size
+        {
+            get
+            {
+                if (_Size == 0) _Size = GetModuleSize();
+                return _Size;
+            }
+        }
+
         [DllImport("ntdll.dll", EntryPoint = "NtOpenFile", ExactSpelling = true, SetLastError = true)]
-        public static extern uint NtOpenFile(IntPtr* handle, uint access, OBJECT_ATTRIBUTES* objectAttributes, IO_STATUS_BLOCK* ioStatus, System.IO.FileShare share, uint openOptions);
+        public static extern uint NtOpenFile(out IntPtr handle, uint access, OBJECT_ATTRIBUTES* objectAttributes, IO_STATUS_BLOCK* ioStatus, System.IO.FileShare share, uint openOptions);
         [DllImport("kernel32.dll", EntryPoint = "DeviceIoControl", CharSet = CharSet.Auto, ExactSpelling = true, SetLastError = true)]
-        public static extern bool DeviceIoControl(IntPtr hDevice, int dwIoControlCode, void* InBuffer, int nInBufferSize, void* OutBuffer, int nOutBufferSize, ref UInt64 pBytesReturned, uint lpOverlapped);
+        public static extern bool DeviceIoControl(IntPtr hDevice, int dwIoControlCode, [MarshalAs(UnmanagedType.AsAny)] [In] Object InBuffer, int nInBufferSize, [MarshalAs(UnmanagedType.AsAny)] [Out] Object OutBuffer, int nOutBufferSize, ref UInt64 pBytesReturned, uint lpOverlapped);
         [DllImport("kernel32.dll", EntryPoint = "CloseHandle", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CloseHandle(IntPtr hObject);
         [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -61,13 +87,11 @@ namespace KernelMemorySharp
         public static void Open()
         {
             IO_STATUS_BLOCK ioStatus;
-            IntPtr deviceHandle;
             var objectAttributes = new OBJECT_ATTRIBUTES();
             objectAttributes.Length = Marshal.SizeOf(typeof(OBJECT_ATTRIBUTES));
             var deviceName = new UNICODE_STRING(@"\Device\shalz");
             objectAttributes.ObjectName = new IntPtr(&deviceName);
-            var status = NtOpenFile(&deviceHandle, (uint)(0xC0100000), &objectAttributes, &ioStatus, System.IO.FileShare.None, 3u);
-            DeviceHandle = deviceHandle;
+            var status = NtOpenFile(out DeviceHandle, (uint)(0xC0100000), &objectAttributes, &ioStatus, System.IO.FileShare.None, 3u);
         }
         public static void Close()
         {
@@ -99,21 +123,36 @@ namespace KernelMemorySharp
             SetCallback(true, procName);
             if (launch) System.Diagnostics.Process.Start(procName);
             while (GetProcId() == 0) System.Threading.Thread.Sleep(500);
-            ProcessId = GetProcId();
-            BaseAddress = GetModuleAddr();
+            _ProcessId = GetProcId();
+            _BaseAddress = GetModuleAddr();
             SetCallback(false);
+        }
+        public static V DeviceIoControl<V>(IntPtr deviceHandle, Int32 code, Object input)
+        {
+            ulong io = 0;
+            uint zero = 0;
+            byte[] bytes = new byte[Marshal.SizeOf<V>()];
+            var q = DeviceIoControl(deviceHandle, code, input, Marshal.SizeOf(input), bytes, Marshal.SizeOf<V>(), ref io, zero);
+            var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            var output = Marshal.PtrToStructure<V>(handle.AddrOfPinnedObject());
+            handle.Free();
+            return output;
         }
         public static Int32 GetCookie()
         {
-            return (Int32)DriverLoaderSharp.Natives.DeviceIoControl<UInt64>(DeviceHandle, IOCTL_COOKIE, new UInt64());
+            return (Int32)DeviceIoControl<UInt64>(DeviceHandle, IOCTL_COOKIE, new UInt64());
         }
         public static Int32 GetProcId()
         {
-            return (Int32)DriverLoaderSharp.Natives.DeviceIoControl<UInt64>(DeviceHandle, IOCTL_GET_PROC, new UInt64());
+            return (Int32)DeviceIoControl<UInt64>(DeviceHandle, IOCTL_GET_PROC, new UInt64());
         }
         public static UInt64 GetModuleAddr()
         {
-            return DriverLoaderSharp.Natives.DeviceIoControl<UInt64>(DeviceHandle, IOCTL_GET_MODULE, new UInt64());
+            return DeviceIoControl<UInt64>(DeviceHandle, IOCTL_GET_MODULE, new UInt64());
+        }
+        public static UInt64 GetModuleSize()
+        {
+            return DeviceIoControl<UInt64>(DeviceHandle, IOCTL_GET_MODULE, new UInt64());
         }
         [StructLayout(LayoutKind.Sequential)]
         public struct IoctlProcessStruct
@@ -129,11 +168,11 @@ namespace KernelMemorySharp
         public static Boolean SetCallback(Boolean enable, String procName = "")
         {
             var processStruct = new MemoryDriver.IoctlProcessStruct(enable, procName);
-            return DriverLoaderSharp.Natives.DeviceIoControl<Boolean>(DeviceHandle, IOCTL_CALLBACK, processStruct);
+            return DeviceIoControl<Boolean>(DeviceHandle, IOCTL_CALLBACK, processStruct);
         }
         public static Boolean UnloadDriver()
         {
-            return DriverLoaderSharp.Natives.DeviceIoControl<Boolean>(DeviceHandle, IOCTL_UNLOAD, new Nop());
+            return DeviceIoControl<Boolean>(DeviceHandle, IOCTL_UNLOAD, new Nop());
         }
         [StructLayout(LayoutKind.Sequential)]
         struct IoctlMemoryStruct
@@ -171,9 +210,25 @@ namespace KernelMemorySharp
 
             var output = new IoctlMemoryStruct();
             ulong io = 0;
-            //var status = DriverLoaderSharp.Natives.DeviceIoControl(new SafeFileHandle(DeviceHandle, true), IOCTL_RPM, (object)&input, Marshal.SizeOf<IoctlMemoryStruct>(), &output, (UInt32)Marshal.SizeOf(typeof(IoctlMemoryStruct)), ref io, 0);
-            var status = DeviceIoControl(DeviceHandle, IOCTL_RPM, &input, Marshal.SizeOf<IoctlMemoryStruct>(), &output, Marshal.SizeOf(typeof(IoctlMemoryStruct)), ref io, 0);
+            var status = DeviceIoControl(DeviceHandle, IOCTL_RPM, input, Marshal.SizeOf<IoctlMemoryStruct>(), output, Marshal.SizeOf(typeof(IoctlMemoryStruct)), ref io, 0);
             var obj = Marshal.PtrToStructure<T>(intPtr);
+            var members = obj.GetType().GetFields();
+            foreach(var member in members)
+            {
+                if (member.FieldType != typeof(String))
+                    continue;
+                var t = member.GetValue(obj);
+
+                var str23 = ReadProcessMemory<UInt32>(addr + 0x60 + 16);
+                var offset = Marshal.OffsetOf<T>(member.Name).ToInt32();
+                var qq = (Int64)Marshal.ReadIntPtr(intPtr, offset + 16);
+                var smartString = (Int64)Marshal.ReadIntPtr(intPtr, offset + 16) >> 32 == 0x1f;
+                if (!smartString)
+                    continue;
+                var strPtr = (Int32)(Int64)Marshal.ReadIntPtr(intPtr, offset);
+                var str = ReadProcessMemory<String>((UInt64)strPtr);
+                member.SetValueDirect(__makeref(obj), str);
+            }
             Marshal.FreeHGlobal(intPtr);
             return obj;
         }
@@ -189,8 +244,47 @@ namespace KernelMemorySharp
             input.Buffer = objPtr;
             var output = new IoctlMemoryStruct();
             ulong io = 0;
-            var status = DeviceIoControl(DeviceHandle, IOCTL_WPM, &input, Marshal.SizeOf<IoctlMemoryStruct>(), &output, Marshal.SizeOf<IoctlMemoryStruct>(), ref io, 0);
+            var status = DeviceIoControl(DeviceHandle, IOCTL_WPM, input, Marshal.SizeOf<IoctlMemoryStruct>(), output, Marshal.SizeOf<IoctlMemoryStruct>(), ref io, 0);
             Marshal.FreeHGlobal(objPtr);
+        }
+
+        public struct Buffer
+        {
+            public fixed Byte Data[0x1000];
+        }
+        public static List<UInt64> SearchProcessMemory(String pattern, UInt64 start, UInt64 end)
+        {
+            var arrayOfBytes = pattern.Split(' ').Select(b => b.Contains("?") ? -1 : Convert.ToInt32(b, 16)).ToArray();
+            var addresses = new List<UInt64>();
+            var iters = (end - start) / (UInt64)Marshal.SizeOf<Buffer>();
+            for (uint i = 0; i < iters; i++)
+            {
+                var buffer = ReadProcessMemory<Buffer>(start + i * (UInt64)Marshal.SizeOf<Buffer>());
+                addresses.AddRange(Scan(buffer, arrayOfBytes).Select(j => (UInt64)j + start + i * (UInt64)Marshal.SizeOf<Buffer>()).ToArray());
+            }
+            return addresses;
+        }
+        static List<Int32> Scan(Buffer buf, Int32[] pattern)
+        {
+            var addresses = new List<Int32>();
+
+            for(int i = 0; i < Marshal.SizeOf<Buffer>(); i++)
+            {
+                var found = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (pattern[j] == -1)
+                        continue;
+                    if (buf.Data[i + j] != pattern[j])
+                    {
+                        found = false;
+                        break;
+                    }
+                }
+                if (found)
+                    addresses.Add(i);
+            }
+            return addresses;
         }
     }
 }
